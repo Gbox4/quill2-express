@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Team {
+    id          Int          @id @default(autoincrement())
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    name        String
+    allowedTabs String @default("/chat,/data,/brief")
+    users       User[]
+}
+
+enum PlanType {
+    FREE
+    PRO
+    ENTERPRISE
+}
+
+model User {
+    id                  Int                  @id @default(autoincrement())
+    createdAt           DateTime             @default(now())
+    updatedAt           DateTime             @updatedAt
+    email               String               @unique
+    planType            PlanType             @default(FREE)
+    passwordHash        String
+    team                Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    teamId              Int
+    sessions            Session[]
+    onboarded           Boolean              @default(false)
+    questionChains      QuestionChain[]
+    resetPasswordTokens ResetPasswordToken[]
+}
+
+model Session {
+    id        Int      @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    expires   DateTime
+    token     String   @unique
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    userId    Int
+    country   String   @default("")
+    region    String   @default("")
+    city      String   @default("")
+    address   String   @default("")
+}
+
+model ResetPasswordToken {
+    id        Int      @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    expires   DateTime
+    token     String   @unique
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    userId    Int
+}
+
+model QuestionChain {
+    id           Int        @id @default(autoincrement())
+    createdAt    DateTime   @default(now())
+    updatedAt    DateTime   @updatedAt
+    questions    Question[]
+    user         User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    userId       Int
+    public       Boolean    @default(false)
+    archived     Boolean    @default(false)
+    name         String     @default("")
+    startingText String?
+}
+
+model Question {
+    id              Int           @id @default(autoincrement())
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+    loading         Boolean       @default(true)
+    archived        Boolean       @default(false)
+    text            String
+    rawAnswer       String        @default("")
+    sources         String        @default("")
+    questionChain   QuestionChain @relation(fields: [questionChainId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    questionChainId Int
+    answer          String        @default("")
+    error           String        @default("")
+    rating          Int           @default(0)
+    filenames       String
+}

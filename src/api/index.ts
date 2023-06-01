@@ -1,7 +1,8 @@
 import express from 'express';
-
-import MessageResponse from '../interfaces/MessageResponse';
-import emojis from './emojis';
+import MessageResponse from '~/interfaces/MessageResponse';
+import brief from '~/api/brief';
+import csv from '~/api/csv';
+import chat from '~/api/chat';
 
 const router = express.Router();
 
@@ -11,6 +12,8 @@ router.get<{}, MessageResponse>('/', (req, res) => {
   });
 });
 
-router.use('/emojis', emojis);
+router.use('/brief', brief);
+router.use('/csv', csv);
+router.use('/chat', chat);
 
 export default router;

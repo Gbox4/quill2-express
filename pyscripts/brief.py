@@ -45,8 +45,13 @@ collection.add(
 results = collection.query(
     query_texts=[question],
     n_results=k
-)['documents'][0]
+)
+
+documents = results['documents'][0]
+
+# Convert distances to strings
+distances = list(map(lambda x: str(x), results['distances'][0]))
 
 print("=====PYSCRIPT_OUTPUT=====")
-print("\n=====\n".join(results))
+print("\n=====\n".join(documents + distances))
 print("=====PYSCRIPT_OUTPUT=====")

@@ -15,30 +15,54 @@ const upload = multer()
 router.post('/', upload.none(), asyncHandler(async (req, res) => {
   const schema = z.object({
     sessionToken: z.string(),
-    text: z.string(),
     question: z.string(),
-    // k: z.number()
+    top_k: z.number(),
+    type: z.string(),
+    docs: z.array(z.object({
+      id: z.number(),
+      text: z.string(),
+      name: z.string(),
+    }))
   });
   const body = schema.parse(req.body);
   const session = await prisma.session.findFirstOrThrow({
     where: { token: body.sessionToken },
   })
 
-  const textFile = "tmp/" + randomUUID() + ".txt";
   const questionFile = "tmp/" + randomUUID() + ".txt";
-  await writeFile(textFile, body.text);
   await writeFile(questionFile, body.question);
 
-  let sentences = await runPyScript("pyscripts/brief.py", [textFile, questionFile, "100"])
-  // Make sentences at most 4000 characters long
-  sentences = sentences.slice(0, 4000);
-  // Remove the last sentence
-  sentences = sentences.split("=====").slice(0, -1).join("=====");
+  const resSentences = [] as {
+    sentence: string,
+    score: number,
+    docId: number,
+  }[]
 
-  await rm(textFile);
+  for (const doc of body.docs) {
+    const textFile = "tmp/" + randomUUID() + ".txt";
+    await writeFile(textFile, doc.text);
+
+    let rawBrief = await runPyScript("pyscripts/brief.py", [textFile, questionFile, body.top_k.toString()])
+    let rawList = rawBrief.split("\n=====\n")
+    // First half is sentences, second half is scores
+    let sentences = rawList.slice(0, rawList.length / 2)
+    let scores = rawList.slice(rawList.length / 2)
+
+    // Add to resSentences
+    for (let i = 0; i < sentences.length; i++) {
+      resSentences.push({
+        sentence: sentences[i],
+        score: parseFloat(scores[i]),
+        docId: doc.id,
+      })
+    }
+
+    await rm(textFile);
+  }
+
   await rm(questionFile);
 
-  res.json({ sentences })
+  res.json({ sentences: resSentences })
 }));
 
 router.post("/summary", asyncHandler(async (req, res) => {

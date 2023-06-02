@@ -6,6 +6,25 @@ if len(sys.argv) != 4:
     print("Usage: python script.py <textfile> <questionfile> <k>")
     sys.exit()
 
+def break_string_into_chunks(string, max_length, chunk_size):
+    if len(string) <= max_length:
+        return [string]  # Return the whole string as a single chunk
+
+    chunks = []
+    current_chunk = ""
+    for char in string:
+        if len(current_chunk) == chunk_size:
+            chunks.append(current_chunk)
+            current_chunk = ""
+        current_chunk += char
+
+    # Append the last chunk
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
+
+
 textfile = sys.argv[1]
 questionfile = sys.argv[2]
 k = int(sys.argv[3])
@@ -13,7 +32,11 @@ k = int(sys.argv[3])
 text = open(textfile, 'r').read()
 question = open(questionfile, 'r').read()
 
-sentences = tokenize.sent_tokenize(text)
+long_sentences = tokenize.sent_tokenize(text)
+
+sentences = []
+for sentence in long_sentences:
+    sentences += break_string_into_chunks(sentence, 1000, 1000)
 
 sentences = list(filter(lambda x: len(x) > 20, sentences))
 

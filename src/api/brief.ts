@@ -4,7 +4,6 @@ import { rm, writeFile } from 'fs/promises';
 import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
-import { chatComplete } from '~/lib/chatComplete';
 import { prisma } from '~/lib/db';
 import runPyScript from '~/lib/runPyScript';
 
@@ -64,32 +63,5 @@ router.post('/', upload.none(), asyncHandler(async (req, res) => {
 
   res.json({ sentences: resSentences })
 }));
-
-router.post("/summary", asyncHandler(async (req, res) => {
-  const schema = z.object({
-    sessionToken: z.string(),
-    sentences: z.string(),
-    question: z.string(),
-    // k: z.number()
-  });
-  const body = schema.parse(req.body);
-  const session = await prisma.session.findFirstOrThrow({
-    where: { token: body.sessionToken },
-  })
-  const sentences = body.sentences
-
-  const summary = await chatComplete([
-    {
-      role: "system",
-      content: "You are a helpful assistant."
-    },
-    {
-      role: "user",
-      content: `Here is some text extracted from a document:\n${sentences.replaceAll("=====", "")}\n\n\nUsing the above, write a summary that answers the question. If the information is absent, say so.\n\nQuestion:\n${body.question}`
-    }
-  ], { gpt4: false, temperature: 0 })
-
-  res.json({ summary })
-}))
 
 export default router;

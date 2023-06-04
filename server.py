@@ -8,6 +8,7 @@ import requests
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
+
 @app.route('/extract-text-from-pdf', methods=['POST'])
 def extract_text():
     file = request.files['file']
@@ -22,12 +23,28 @@ def extract_text():
 
     return "No file received"
 
+
 @app.route('/extract-text-from-url', methods=['POST'])
 def extract_text_from_url():
     url = request.form.get('url')
     if url:
         print(url)
-        headers = {"User-agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36"}
+        headers = {
+            "authority": 'efts.sec.gov',
+            "accept": '*/*',
+            'accept-language': 'en-US,en;q=0.6',
+            'content-type': 'application/json',
+            "origin": 'https://www.sec.gov',
+            "referer": 'https://www.sec.gov/',
+            'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Brave";v="114"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"macOS"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-site',
+            'sec-gpc': '1',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        }
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.text, 'html.parser')
 

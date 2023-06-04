@@ -1,6 +1,14 @@
 import sys
 from nltk import tokenize
 import chromadb
+import time
+
+# Function to print the runtime in milliseconds
+def print_runtime(start_time, end_time):
+    runtime_ms = (end_time - start_time) * 1000
+    print("Runtime:", runtime_ms, "milliseconds")
+start_time = time.time()
+
 
 if len(sys.argv) != 4:
     print("Usage: python script.py <textfile> <questionfile> <k>")
@@ -33,6 +41,8 @@ text = open(textfile, 'r').read()
 question = open(questionfile, 'r').read()
 
 long_sentences = tokenize.sent_tokenize(text)
+print("tokenized text")
+print_runtime(start_time, time.time())
 
 sentences = []
 for sentence in long_sentences:
@@ -64,6 +74,9 @@ collection.add(
     documents=sentences,
     ids=list(map(lambda x: str(x), range(len(sentences))))
 )
+
+print("added to collection")
+print_runtime(start_time, time.time())
 
 results = collection.query(
     query_texts=[question],

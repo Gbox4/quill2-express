@@ -1,3 +1,37 @@
-<div>
-  
-</div>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SSE Example</title>
+  </head>
+  <body>
+    <h1>SSE Example</h1>
+    <div id="sse-content"></div>
+
+    <script>
+      const sseUrl = "http://localhost:3003/api/v1/complete/stream?q=Hello";
+      let eventSource = null;
+
+      function startSSE() {
+        eventSource = new EventSource(sseUrl);
+
+        eventSource.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+          const delta = data.choices[0].delta;
+          console.log(delta);
+
+          if (delta.content) {
+            const sseContentElement = document.getElementById("sse-content");
+            sseContentElement.innerText += delta.content;
+          }
+        };
+
+        eventSource.onerror = function (error) {
+          console.error("SSE error:", error);
+          eventSource.close();
+        };
+      }
+
+      startSSE();
+    </script>
+  </body>
+</html>

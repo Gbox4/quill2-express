@@ -1,6 +1,8 @@
 import { Configuration, OpenAIApi } from "openai";
 import { countTokens } from "./countTokens";
+import { Response } from "express";
 const chalk = require('chalk');;
+import https from 'https';
 
 export type GptChat = {
   role: "system" | "user" | "assistant",
@@ -46,4 +48,83 @@ export async function chatComplete(convo: GptChat[], opts?: {
   console.log(chalk.cyan("</GPT ANSWER>"))
 
   return answer;
+}
+
+
+export async function chatCompleteStream(convo: GptChat[], res: Response, opts?: {
+  gpt4?: boolean,
+  temperature?: number
+}) {
+  const rawText = convo.map((x) => x.content).join("\n");
+  const tokenCount = countTokens(rawText);
+  const tokensLeft = 3950 - tokenCount;
+  if (tokensLeft < 0) {
+    throw new Error("Prompt is too long");
+  }
+
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Content-Type', 'text/event-stream');
+  // res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders(); // flush the headers to establish SSE with client
+
+  const openaiReq = https.request({
+    hostname: "api.openai.com",
+    port: 443,
+    path: "/v1/chat/completions",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + process.env.OPENAI_API_KEY
+    }
+  }, function (openaiRes) {
+    openaiRes.on('data', (chunk) => {
+      res.write(chunk)
+
+      const lines = (chunk.toString() as string).split('\n').filter(line => line.trim() !== '');
+      for (const line of lines) {
+        // res.write(line)
+        const message = line.replace(/^data: /, '');
+        if (message === '[DONE]') {
+          console.log("done")
+          res.end(); // terminates SSE session
+          return;
+        } else {
+          try {
+            const parsed = JSON.parse(message);
+            console.log(parsed.choices[0].delta);
+          } catch (error) {
+            console.error('Could not JSON parse stream message', message, error);
+          }
+        }
+      }
+
+    });
+    openaiRes.on('end', () => {
+      console.log('No more data in response.');
+    });
+
+    res.on('close', () => {
+      console.log('client dropped me');
+      res.end();
+      openaiReq.destroy()
+    });
+  })
+
+  const body = JSON.stringify({
+    model: opts?.gpt4 ? "gpt-4" : "gpt-3.5-turbo",
+    messages: convo,
+    temperature: opts?.temperature,
+    max_tokens: tokensLeft,
+    stream: true
+  })
+
+  openaiReq.on('error', (e) => {
+    console.error("problem with request:" + e.message);
+    openaiReq.destroy()
+  });
+
+  openaiReq.write(body)
+
+  openaiReq.end()
 }

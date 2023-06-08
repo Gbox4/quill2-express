@@ -1,35 +1,41 @@
 import express from 'express';
 import { copyFile, mkdir, readdir, rm } from 'fs/promises';
+import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
 import { prisma } from '~/lib/db';
+import runPyScript from '~/lib/runPyScript';
 
 const router = express.Router();
 
-router.post('/create', asyncHandler(async (req, res) => {
+const upload = multer({ dest: "uploads/" })
+
+router.post('/create', upload.single("file"), asyncHandler(async (req, res) => {
+  if (!req.file) throw 'no file'
+
   const schema = z.object({
     sessionToken: z.string(),
   });
-
-  // TODO: Use multer to get file upload
-  const filename = "uploads/a.txt"
-
   const body = schema.parse(req.body);
+
   const session = await prisma.session.findFirstOrThrow({
     where: { token: body.sessionToken },
     select: { user: { select: { teamId: true } } }
   })
 
-  const dest = `data/${session.user.teamId}`
+  const fromFile = req.file.path
+
+  const destFolder = `data/${session.user.teamId}`
+  const destFile = `${destFolder}/${req.file.originalname}`
 
   try {
-    await mkdir(dest)
+    await mkdir(destFolder)
   } catch {
     console.log("dir already exists")
   }
 
-  await copyFile(filename, dest)
-  await rm(filename)
+  await copyFile(fromFile, destFile)
+  await rm(fromFile)
 
   res.json({ success: true })
 }));
@@ -40,7 +46,7 @@ router.post("/read", asyncHandler(async (req, res) => {
   });
 
   const body = schema.parse(req.body);
-  
+
   const session = await prisma.session.findFirstOrThrow({
     where: { token: body.sessionToken },
     select: { user: { select: { teamId: true } } }
@@ -57,6 +63,26 @@ router.post("/read", asyncHandler(async (req, res) => {
   }
 
   res.json({ csvFilenames })
+}))
+
+router.post("/describe", asyncHandler(async (req, res) => {
+  const schema = z.object({
+    sessionToken: z.string(),
+    filename: z.string()
+  });
+
+  const body = schema.parse(req.body);
+
+  const session = await prisma.session.findFirstOrThrow({
+    where: { token: body.sessionToken },
+    select: { user: { select: { teamId: true } } }
+  })
+
+  const destFile = `data/${session.user.teamId}/${body.filename}`
+
+  const cols = await runPyScript("pyscripts/csvCols.py", [destFile])
+
+  res.json({ cols })
 }))
 
 router.post("/delete", asyncHandler(async (req, res) => {

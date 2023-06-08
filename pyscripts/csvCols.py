@@ -14,18 +14,6 @@ df = pd.read_csv(filename)
 # clean column names
 # df.columns = df.columns.str.replace(' ', '')
 
-
-# save "example.txt" file
-examples = """Show me all data.
-=====
-```
-import pandas as pd
-
-data = pd.read_csv('{{{FILENAME}}}')
-print(data.to_csv(index=False))
-```
-I printed all the data in the datasetCSV."""
-
 cols = "<class 'pandas.core.frame.DataFrame'>\nColumn: Dtype: Examples\n"
 for col in df.columns:
     unique_values = df[col].unique()[:3]  # get the first 3 unique values

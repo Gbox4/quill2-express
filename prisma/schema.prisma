@@ -11,11 +11,11 @@ datasource db {
 }
 
 model Team {
-    id          Int          @id @default(autoincrement())
-    createdAt   DateTime     @default(now())
-    updatedAt   DateTime     @updatedAt
+    id          Int      @id @default(autoincrement())
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
     name        String
-    allowedTabs String @default("/chat,/data,/brief")
+    allowedTabs String   @default("/chat,/data,/brief")
     users       User[]
 }
 
@@ -73,8 +73,9 @@ model QuestionChain {
     userId       Int
     public       Boolean    @default(false)
     archived     Boolean    @default(false)
-    name         String     @default("")
+    name         String
     startingText String?
+    filenames    String // delimited by \n=====\n
 }
 
 model Question {

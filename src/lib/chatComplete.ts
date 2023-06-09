@@ -53,7 +53,8 @@ export async function chatComplete(convo: GptChat[], opts?: {
 
 export async function chatCompleteStream(convo: GptChat[], res: Response, opts?: {
   gpt4?: boolean,
-  temperature?: number
+  temperature?: number,
+  onFinish?: (final: string) => void
 }) {
   const rawText = convo.map((x) => x.content).join("\n");
   const tokenCount = countTokens(rawText);
@@ -78,6 +79,8 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
       "Authorization": "Bearer " + process.env.OPENAI_API_KEY
     }
   }, function (openaiRes) {
+    let final = ""
+
     openaiRes.on('data', (chunk) => {
       res.write(chunk)
 
@@ -93,6 +96,9 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
           try {
             const parsed = JSON.parse(message);
             console.log(parsed.choices[0].delta);
+            if (parsed.choices[0].delta.content) {
+              final += parsed.choices[0].delta.content
+            }
           } catch (error) {
             console.error('Could not JSON parse stream message', message, error);
           }
@@ -108,6 +114,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
       console.log('client dropped me');
       res.end();
       openaiReq.destroy()
+      if (opts?.onFinish) { opts.onFinish(final) }
     });
   })
 

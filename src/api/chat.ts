@@ -3,7 +3,7 @@ import express from 'express';
 import { rm } from 'fs/promises';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
-import { GptChat, chatComplete } from '~/lib/chatComplete';
+import { GptChat, chatComplete, chatCompleteStream } from '~/lib/chatComplete';
 import { countTokens } from '~/lib/countTokens';
 import { prisma } from '~/lib/db';
 import getCsvInfo from '~/lib/getCsvInfo';
@@ -12,32 +12,26 @@ import { runPython } from '~/lib/runPython';
 
 const router = express.Router();
 
-
-// Create route
-router.post('/create', asyncHandler(async (req, res) => {
-  // Handle input
+router.get('/start', asyncHandler(async (req, res) => {
   const schema = z.object({
     sessionToken: z.string(),
-    filenames: z.string().array().min(1),
-    gpt4: z.boolean().optional()
+    id: z.coerce.number()
   });
-  const body = schema.parse(req.body);
+  const body = schema.parse(req.query);
   const session = await prisma.session.findFirstOrThrow({
     where: { token: body.sessionToken },
     select: { user: { select: { teamId: true, id: true } } }
   })
 
-  // Create questionChain
-  const csvInfo = await getCsvInfo(body.filenames, session.user.teamId)
-  const questionChain = await prisma.questionChain.create({
-    data: {
-      name: new Date().toLocaleString(),
-      userId: session.user.id,
+  const questionChain = await prisma.questionChain.findFirstOrThrow({
+    where: {
+      id: body.id,
+      userId: session.user.id
     }
   })
 
-  // Send off response
-  res.json({ id: questionChain.id })
+  // Create questionChain
+  const csvInfo = await getCsvInfo(questionChain.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
 
   // Generate starting text
   const convo = [{ role: "system", content: "You are a helpful assistant." },
@@ -57,13 +51,18 @@ Your conversation with the user begins now.`}
   ] as GptChat[]
 
   // Update questionChain
-  const startingText = await chatComplete(convo, { temperature: 0, gpt4: body.gpt4 })
-  await prisma.questionChain.update({
-    where: { id: questionChain.id },
-    data: { startingText }
+  await chatCompleteStream(convo, res, {
+    temperature: 0,
+    onFinish: async (final) => {
+      await prisma.questionChain.update({
+        where: { id: questionChain.id },
+        data: { startingText: final }
+      })
+    }
   })
+
   return
-}));
+}))
 
 // Continue route
 router.post('/continue', asyncHandler(async (req, res) => {

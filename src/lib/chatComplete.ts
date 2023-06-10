@@ -101,7 +101,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
         } else {
           try {
             const parsed = JSON.parse(message);
-            console.log(parsed.choices[0].delta);
+            // console.log(parsed.choices[0].delta);
             if (parsed.choices[0].delta.content) {
               final += parsed.choices[0].delta.content
             }
@@ -120,6 +120,9 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
       console.log('client dropped me');
       res.end();
       openaiReq.destroy()
+      console.log(chalk.cyan("<GPT ANSWER>"))
+      console.log(final)
+      console.log(chalk.cyan("</GPT ANSWER>"))
       if (opts?.onFinish) { opts.onFinish(final) }
     });
   })

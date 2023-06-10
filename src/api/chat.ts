@@ -65,18 +65,18 @@ Your conversation with the user begins now.`}
 }))
 
 // Continue route
-router.post('/continue', asyncHandler(async (req, res) => {
+router.get('/continue', asyncHandler(async (req, res) => {
 
   // Handle input
   const schema = z.object({
     question: z.string().max(6000),
     sessionToken: z.string(),
-    filenames: z.string().array(),
-    questionChainId: z.number(),
-    replyQuestionId: z.number().optional(),
+    filenames: z.string(),
+    questionChainId: z.coerce.number(),
+    replyQuestionId: z.coerce.number().optional(),
     gpt4: z.boolean().optional()
   });
-  const body = schema.parse(req.body);
+  const body = schema.parse(req.query);
   const session = await prisma.session.findFirstOrThrow({
     where: { token: body.sessionToken },
     select: { user: { select: { teamId: true, id: true } } }
@@ -110,17 +110,14 @@ router.post('/continue', asyncHandler(async (req, res) => {
       text: body.question,
       loading: true,
       questionChainId: questionChain.id,
-      filenames: body.filenames.join("\n=====\n")
+      filenames: body.filenames
     }
   })
-
-  // Send response
-  res.json({ id: questionChain.id });
-
+  
   try {
     console.log("generating answer...")
     // Get CSV data
-    const csvInfo = await getCsvInfo(body.filenames, session.user.teamId)
+    const csvInfo = await getCsvInfo(body.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
 
     // Build conversation
     const convoStart: GptChat[] = [{ role: "system", content: "You are a helpful assistant." },
@@ -197,48 +194,52 @@ Your job is to write python scripts to answer the user's requests. Write code by
 
     let convo = [...convoExamples, ...convoStart, ...convoMid, ...convoEnd]
 
-    const answer = await chatComplete(convo, { temperature: 0 })
+    await chatCompleteStream(convo, res, {
+      temperature: 0,
 
-    // Parse gpt response
-    console.log("parsing answer...")
-    const chunks = parseAnswer(answer)
+      onFinish: async (answer) => {
+        // Parse gpt response
+        console.log("parsing answer...")
+        const chunks = parseAnswer(answer)
 
-    // Run python code and format for frontend
-    let formattedAnswer = ""
-    for (const chunk of chunks) {
-      if (chunk.type === 'text') {
-        formattedAnswer += chunk.value
-      } else {
-        const rawCode = chunk.value
-        const { output, error } = await runPython(chunk.value, csvInfo)
+        // Run python code and format for frontend
+        let formattedAnswer = ""
+        for (const chunk of chunks) {
+          if (chunk.type === 'text') {
+            formattedAnswer += chunk.value
+          } else {
+            const rawCode = chunk.value
+            const { output, error } = await runPython(chunk.value, csvInfo)
 
-        if (output) {
-          formattedAnswer += "\n=====QUILL_CHUNK=====\n"
-            + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
-            + "\n<OUTPUT>\n" + output + "\n</OUTPUT>\n"
-            + "\n=====QUILL_CHUNK=====\n"
-        } else if (error) {
-          formattedAnswer += "\n=====QUILL_CHUNK=====\n"
-            + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
-            + "\n<ERROR>\n" + error + "\n</ERROR>\n"
-            + "\n=====QUILL_CHUNK=====\n"
+            if (output) {
+              formattedAnswer += "\n=====QUILL_CHUNK=====\n"
+                + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
+                + "\n<OUTPUT>\n" + output + "\n</OUTPUT>\n"
+                + "\n=====QUILL_CHUNK=====\n"
+            } else if (error) {
+              formattedAnswer += "\n=====QUILL_CHUNK=====\n"
+                + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
+                + "\n<ERROR>\n" + error + "\n</ERROR>\n"
+                + "\n=====QUILL_CHUNK=====\n"
+            }
+          }
         }
-      }
-    }
 
-    console.log("updating question...")
-    await prisma.question.update({
-      where: {
-        id: question.id
-      },
-      data: {
-        rawAnswer: answer,
-        loading: false,
-        answer: formattedAnswer,
+        console.log("updating question...")
+        await prisma.question.update({
+          where: {
+            id: question.id
+          },
+          data: {
+            rawAnswer: answer,
+            loading: false,
+            answer: formattedAnswer,
+          }
+        })
+        console.log("Done!")
       }
+
     })
-    console.log("Done!")
-    return
   } catch (e) {
     console.log(e)
     await prisma.question.update({

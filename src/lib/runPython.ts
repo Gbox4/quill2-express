@@ -20,7 +20,7 @@ export async function runPython(code: string, csvInfo: CsvInfo) {
   const scriptOutput = await execAsync(
     `./runInDocker.sh tmp/${foldername}/Dockerfile ${imagename} ${containername}`,
     {
-      maxBuffer: 1024 * 4000,
+      maxBuffer: 1024 * 40000,
     }
   );
   await rm(`tmp/${foldername}`, { recursive: true, force: true })

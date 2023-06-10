@@ -113,7 +113,7 @@ router.get('/continue', asyncHandler(async (req, res) => {
       filenames: body.filenames
     }
   })
-  
+
   try {
     console.log("generating answer...")
     // Get CSV data
@@ -198,45 +198,50 @@ Your job is to write python scripts to answer the user's requests. Write code by
       temperature: 0,
 
       onFinish: async (answer) => {
-        // Parse gpt response
-        console.log("parsing answer...")
-        const chunks = parseAnswer(answer)
+        try {
 
-        // Run python code and format for frontend
-        let formattedAnswer = ""
-        for (const chunk of chunks) {
-          if (chunk.type === 'text') {
-            formattedAnswer += chunk.value
-          } else {
-            const rawCode = chunk.value
-            const { output, error } = await runPython(chunk.value, csvInfo)
+          // Parse gpt response
+          console.log("parsing answer...")
+          const chunks = parseAnswer(answer)
 
-            if (output) {
-              formattedAnswer += "\n=====QUILL_CHUNK=====\n"
-                + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
-                + "\n<OUTPUT>\n" + output + "\n</OUTPUT>\n"
-                + "\n=====QUILL_CHUNK=====\n"
-            } else if (error) {
-              formattedAnswer += "\n=====QUILL_CHUNK=====\n"
-                + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
-                + "\n<ERROR>\n" + error + "\n</ERROR>\n"
-                + "\n=====QUILL_CHUNK=====\n"
+          // Run python code and format for frontend
+          let formattedAnswer = ""
+          for (const chunk of chunks) {
+            if (chunk.type === 'text') {
+              formattedAnswer += chunk.value
+            } else {
+              const rawCode = chunk.value
+              const { output, error } = await runPython(chunk.value, csvInfo)
+
+              if (output) {
+                formattedAnswer += "\n=====QUILL_CHUNK=====\n"
+                  + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
+                  + "\n<OUTPUT>\n" + output + "\n</OUTPUT>\n"
+                  + "\n=====QUILL_CHUNK=====\n"
+              } else if (error) {
+                formattedAnswer += "\n=====QUILL_CHUNK=====\n"
+                  + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
+                  + "\n<ERROR>\n" + error + "\n</ERROR>\n"
+                  + "\n=====QUILL_CHUNK=====\n"
+              }
             }
           }
-        }
 
-        console.log("updating question...")
-        await prisma.question.update({
-          where: {
-            id: question.id
-          },
-          data: {
-            rawAnswer: answer,
-            loading: false,
-            answer: formattedAnswer,
-          }
-        })
-        console.log("Done!")
+          console.log("updating question...")
+          await prisma.question.update({
+            where: {
+              id: question.id
+            },
+            data: {
+              rawAnswer: answer,
+              loading: false,
+              answer: formattedAnswer,
+            }
+          })
+          console.log("Done!")
+        } catch (e) {
+          console.log(e)
+        }
       }
 
     })

@@ -63,6 +63,12 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
     throw new Error("Prompt is too long");
   }
 
+  console.log(chalk.cyan("<CONVO>"))
+  convo.forEach((chat, i) => {
+    console.log(chalk[chat.role === "user" ? "green" : "yellow"](`${i + 1}. ${chat.role}: ${chat.content}\n\n`))
+  })
+  console.log(chalk.cyan("</CONVO>"))
+
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Content-Type', 'text/event-stream');
   // res.setHeader('Access-Control-Allow-Origin', '*');

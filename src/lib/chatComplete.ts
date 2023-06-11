@@ -1,5 +1,5 @@
 import { Configuration, OpenAIApi } from "openai";
-import { countTokens } from "./countTokens";
+import { countTokens, countTokensConvo } from "./countTokens";
 import { Response } from "express";
 const chalk = require('chalk');;
 import https from 'https';
@@ -13,18 +13,18 @@ export async function chatComplete(convo: GptChat[], opts?: {
   temperature?: number;
   gpt4?: boolean;
 }) {
-  const rawText = convo.map((x) => x.content).join("\n");
-  const tokenCount = countTokens(rawText);
-  const tokensLeft = 3950 - tokenCount;
-  if (tokensLeft < 0) {
-    throw new Error("Prompt is too long");
-  }
-
   console.log(chalk.cyan("<CONVO>"))
   convo.forEach((chat, i) => {
     console.log(chalk[chat.role === "user" ? "green" : "yellow"](`${i + 1}. ${chat.role}: ${chat.content}\n\n`))
   })
   console.log(chalk.cyan("</CONVO>"))
+
+  const rawText = convo.map((x) => x.content).join("\n");
+  const tokenCount = countTokens(rawText);
+  const tokensLeft = 3950 - tokenCount;
+  if (tokensLeft < 0) {
+    throw new Error(`Prompt is too long: ${tokenCount}`);
+  }
 
   const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
@@ -56,18 +56,17 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
   temperature?: number,
   onFinish?: (final: string) => void
 }) {
-  const rawText = convo.map((x) => x.content).join("\n");
-  const tokenCount = countTokens(rawText);
-  const tokensLeft = 3950 - tokenCount;
-  if (tokensLeft < 0) {
-    throw new Error("Prompt is too long");
-  }
-
   console.log(chalk.cyan("<CONVO>"))
   convo.forEach((chat, i) => {
     console.log(chalk[chat.role === "user" ? "green" : "yellow"](`${i + 1}. ${chat.role}: ${chat.content}\n\n`))
   })
   console.log(chalk.cyan("</CONVO>"))
+
+  const tokenMax = (opts?.gpt4 ? 8000 : 4000)
+  const tokenCount = countTokensConvo(convo);
+  if (tokenCount > tokenMax) {
+    throw new Error(`Prompt is too long: ${tokenCount} / ${tokenMax}`);
+  }
 
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Content-Type', 'text/event-stream');
@@ -131,7 +130,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
     model: opts?.gpt4 ? "gpt-4" : "gpt-3.5-turbo",
     messages: convo,
     temperature: opts?.temperature,
-    max_tokens: tokensLeft,
+    max_tokens: tokenMax - tokenCount,
     stream: true
   })
 

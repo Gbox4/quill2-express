@@ -39,34 +39,7 @@ export async function runPython(code: string, csvInfo: CsvInfo) {
 }
 
 function generateScript(script: string) {
-  return `def print_table(df, columns):
-  print("=====")
-  print("TABLE")
-  print(df[columns].to_csv(index=False))
-  print("=====")
-
-
-def print_bar(df, xcol, ycol, *args):
-  print("=====")
-  print(f"BAR-----{xcol}-----{ycol}")
-  print(df[[xcol, ycol]].to_csv(index=False))
-  print("=====")
-
-
-def print_line(df, xcol, ycol, *args):
-  print("=====")
-  print(f"LINE-----{xcol}-----{ycol}")
-  print(df[[xcol, ycol]].to_csv(index=False))
-  print("=====")
-
-
-def print_pie(df, xcol, ycol, *args):
-  print("=====")
-  print(f"PIE-----{xcol}-----{ycol}")
-  print(df[[xcol, ycol]].to_csv(index=False))
-  print("=====")
-
-print("===== SCRIPT OUTPUT =====")
+  return `print("===== SCRIPT OUTPUT =====")
 try:
 ${script.split("\n").reduce((acc, line) => acc + "  " + line + "\n", "")}
 except Exception as e:

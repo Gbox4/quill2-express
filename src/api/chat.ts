@@ -1,13 +1,11 @@
 const chalk = require('chalk');;
 import express from 'express';
-import { rm } from 'fs/promises';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
-import { GptChat, chatComplete, chatCompleteStream } from '~/lib/chatComplete';
+import { GptChat, chatCompleteStream } from '~/lib/chatComplete';
 import { countTokens } from '~/lib/countTokens';
 import { prisma } from '~/lib/db';
 import getCsvInfo from '~/lib/getCsvInfo';
-import runPyScript from '~/lib/runPyScript';
 import { runPython } from '~/lib/runPython';
 
 const router = express.Router();
@@ -127,21 +125,12 @@ router.get('/continue', asyncHandler(async (req, res) => {
 The user has uploaded the following files:
 ${csvInfo.descStr}
 
-You have access to the following functions if needed:
-\`\`\`
-print_table(df, columns)
-print_bar(df, xcol, ycol)
-print_line(df, xcol, ycol)
-print_pie(df, xcol, ycol)
-\`\`\`
+Current date: ${new Date().toISOString().split('T')[0]}. I want you to act as a Python script generator. Every time I ask a question, write a complete python script that will print the answer to my question. Print in csv format, with any relevant columns. Comment your logic. Plan out what you are going to do, then write the script enclosed a code block \`\`\`.
 
-DO NOT USE MATPLOTLIB OR ANY OTHER LIBRARY. ONLY USE THE FUNCTIONS PROVIDED ABOVE.
-
-IMPORT PANDAS EVERY TIME. WRITE THE COMPLETE SCRIPT EVERY TIME.
-
-Today is ${new Date().toISOString().split('T')[0]}.
-
-Your job is to write python scripts to answer the user's requests. Write code by using the code block token: \`\`\``}
+Remember:
+- Write out a plan of what you will do.
+- Write a complete python script in each code block.
+- Only output in CSV format.`}
     ]
 
     const convoMid: GptChat[] = []
@@ -193,10 +182,11 @@ Your job is to write python scripts to answer the user's requests. Write code by
     convoExamples.reverse()
 
     let convo = [...convoExamples, ...convoStart, ...convoMid, ...convoEnd]
+    // const tokenCount = countTokensConvo(convo)
 
     await chatCompleteStream(convo, res, {
       temperature: 0,
-
+      // gpt4: tokenCount > 4000,
       onFinish: async (answer) => {
         try {
 

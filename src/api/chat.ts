@@ -10,6 +10,65 @@ import { runPython } from '~/lib/runPython';
 
 const router = express.Router();
 
+router.get('/create', asyncHandler(async (req, res) => {
+  const schema = z.object({
+    sessionToken: z.string(),
+    filenames: z.string(),
+    gpt4: z.enum(["true", "false"]).transform((value) => value === "true")
+  });
+  const body = schema.parse(req.query);
+  const session = await prisma.session.findFirstOrThrow({
+    where: { token: body.sessionToken },
+    select: { user: { select: { teamId: true, id: true } } }
+  })
+  const csvInfo = await getCsvInfo(body.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
+
+  const questionChain = await prisma.questionChain.create({
+    data: {
+      filenames: body.filenames,
+      userId: session.user.id,
+      name: new Date().toLocaleString(),
+      filesDesc: csvInfo.descStr,
+      gpt4: body.gpt4
+    }
+  })
+
+  res.json({ id: questionChain.id })
+}))
+
+router.get('/settings', asyncHandler(async (req, res) => {
+  const schema = z.object({
+    sessionToken: z.string(),
+    filenames: z.string(),
+    gpt4: z.enum(["true", "false"]).transform((value) => value === "true"),
+    id: z.coerce.number()
+  });
+
+  const body = schema.parse(req.query);
+  console.log(body)
+  const session = await prisma.session.findFirstOrThrow({
+    where: { token: body.sessionToken },
+    select: { user: { select: { teamId: true, id: true } } }
+  })
+  const csvInfo = await getCsvInfo(body.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
+
+  await prisma.questionChain.updateMany({
+    where: {
+      id: body.id,
+      userId: session.user.id
+    },
+    data: {
+      filenames: body.filenames,
+      userId: session.user.id,
+      name: new Date().toLocaleString(),
+      filesDesc: csvInfo.descStr,
+      gpt4: body.gpt4
+    }
+  })
+
+  res.json({ descStr: csvInfo.descStr })
+}))
+
 router.get('/start', asyncHandler(async (req, res) => {
   const schema = z.object({
     sessionToken: z.string(),
@@ -51,6 +110,7 @@ Your conversation with the user begins now.`}
   // Update questionChain
   await chatCompleteStream(convo, res, {
     temperature: 0,
+    gpt4: questionChain.gpt4,
     onFinish: async (final) => {
       await prisma.questionChain.update({
         where: { id: questionChain.id },
@@ -69,16 +129,15 @@ router.get('/continue', asyncHandler(async (req, res) => {
   const schema = z.object({
     question: z.string().max(6000),
     sessionToken: z.string(),
-    filenames: z.string(),
     questionChainId: z.coerce.number(),
-    replyQuestionId: z.coerce.number().optional(),
-    gpt4: z.boolean().optional()
+    replyQuestionIds: z.string().optional(), // delimmed by ,
   });
   const body = schema.parse(req.query);
   const session = await prisma.session.findFirstOrThrow({
     where: { token: body.sessionToken },
     select: { user: { select: { teamId: true, id: true } } }
   })
+  const replyQuestionIds = body.replyQuestionIds?.split(",").map(x => parseInt(x))
 
   // Make sure questionChain exists
   const questionChain = (await prisma.questionChain.findFirstOrThrow({
@@ -87,7 +146,7 @@ router.get('/continue', asyncHandler(async (req, res) => {
         where: {
           loading: false,
           archived: false,
-          id: body.replyQuestionId ? { lte: body.replyQuestionId } : undefined
+          id: replyQuestionIds ? { in: replyQuestionIds } : undefined
         },
         orderBy: {
           createdAt: "desc"
@@ -102,20 +161,24 @@ router.get('/continue', asyncHandler(async (req, res) => {
     }
   }))
 
+  // Validate all replyQuestionIds
+  if (replyQuestionIds && questionChain.questions.length !== replyQuestionIds.length) {
+    throw 'Bad replyQuestionIds'
+  }
+
   // Create new question
   const question = await prisma.question.create({
     data: {
       text: body.question,
       loading: true,
       questionChainId: questionChain.id,
-      filenames: body.filenames
     }
   })
 
   try {
     console.log("generating answer...")
     // Get CSV data
-    const csvInfo = await getCsvInfo(body.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
+    const csvInfo = await getCsvInfo(questionChain.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
 
     // Build conversation
     const convoStart: GptChat[] = [{ role: "system", content: "You are a helpful assistant." },
@@ -142,13 +205,13 @@ Remember:
       }]
 
     let currentTokens = countTokensConvo(convoStart) + countTokensConvo(convoEnd)
-    let tokensBuffer = 500 // 500 tokens for the answer
-    let tokensTotal = 4000
+
+    let tokensTotal = questionChain.gpt4 ? 8000 : 4000
 
     for (let i = 0; i < questionChain.questions.length; i++) {
       const question = questionChain.questions[i]!;
       let newTokens = countTokens(question.rawAnswer) + countTokens(question.text)
-      if (currentTokens + newTokens + tokensBuffer > tokensTotal) {
+      if (currentTokens + newTokens > tokensTotal) {
         break;
       }
       currentTokens += newTokens
@@ -170,7 +233,7 @@ Remember:
       }
 
       let newTokens = countTokens(question) + countTokens(answer)
-      if (currentTokens + newTokens + tokensBuffer > tokensTotal) {
+      if (currentTokens + newTokens > tokensTotal) {
         break;
       }
       currentTokens += newTokens
@@ -186,10 +249,21 @@ Remember:
 
     await chatCompleteStream(convo, res, {
       temperature: 0,
-      // gpt4: tokenCount > 4000,
+      gpt4: questionChain.gpt4,
+      onError: async (msg) => {
+        console.log(msg)
+        await prisma.question.update({
+          where: {
+            id: question.id
+          },
+          data: {
+            loading: false,
+            error: msg,
+          }
+        })
+      },
       onFinish: async (answer) => {
         try {
-
           // Parse gpt response
           console.log("parsing answer...")
           const chunks = parseAnswer(answer)
@@ -231,6 +305,15 @@ Remember:
           console.log("Done!")
         } catch (e) {
           console.log(e)
+          await prisma.question.update({
+            where: {
+              id: question.id
+            },
+            data: {
+              loading: false,
+              error: String(e),
+            }
+          })
         }
       }
 
@@ -264,52 +347,52 @@ function countTokensConvo(convo: GptChat[]) {
   }, 0)
 }
 
-// Get full answer for a question
-router.post('/full', asyncHandler(async (req, res) => {
-  // Handle input
-  const schema = z.object({
-    sessionToken: z.string(),
-    questionId: z.number(),
-    codeIndex: z.number()
-  });
-  const body = schema.parse(req.body);
-  const session = await prisma.session.findFirstOrThrow({
-    where: { token: body.sessionToken },
-    select: { user: { select: { teamId: true, id: true } } }
-  })
-  const question = await prisma.question.findFirstOrThrow({
-    where: {
-      id: body.questionId, questionChain: {
-        userId: session.user.id
-      }
-    }
-  })
-  const csvInfo = await getCsvInfo(question.filenames.split("\n=====\n"), session.user.teamId)
+// // Get full answer for a question
+// router.post('/full', asyncHandler(async (req, res) => {
+//   // Handle input
+//   const schema = z.object({
+//     sessionToken: z.string(),
+//     questionId: z.number(),
+//     codeIndex: z.number()
+//   });
+//   const body = schema.parse(req.body);
+//   const session = await prisma.session.findFirstOrThrow({
+//     where: { token: body.sessionToken },
+//     select: { user: { select: { teamId: true, id: true } } }
+//   })
+//   const question = await prisma.question.findFirstOrThrow({
+//     where: {
+//       id: body.questionId, questionChain: {
+//         userId: session.user.id
+//       }
+//     }
+//   })
+//   const csvInfo = await getCsvInfo(question.filenames.split("\n=====\n"), session.user.teamId)
 
-  const parsed = parseAnswer(question.rawAnswer).filter(x => x.type === "code")
+//   const parsed = parseAnswer(question.rawAnswer).filter(x => x.type === "code")
 
-  const selectedCode = parsed[body.codeIndex]
-  if (!selectedCode) throw 'Bad code index'
+//   const selectedCode = parsed[body.codeIndex]
+//   if (!selectedCode) throw 'Bad code index'
 
-  const rawCode = selectedCode.value
-  const { output, error } = await runPython(selectedCode.value, csvInfo)
+//   const rawCode = selectedCode.value
+//   const { output, error } = await runPython(selectedCode.value, csvInfo)
 
-  let answer = ""
-  if (output) {
-    answer = "\n=====QUILL_CHUNK=====\n"
-      + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
-      + "\n<OUTPUT>\n" + output + "\n</OUTPUT>\n"
-      + "\n=====QUILL_CHUNK=====\n"
-  } else if (error) {
-    answer = "\n=====QUILL_CHUNK=====\n"
-      + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
-      + "\n<ERROR>\n" + error + "\n</ERROR>\n"
-      + "\n=====QUILL_CHUNK=====\n"
-  }
+//   let answer = ""
+//   if (output) {
+//     answer = "\n=====QUILL_CHUNK=====\n"
+//       + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
+//       + "\n<OUTPUT>\n" + output + "\n</OUTPUT>\n"
+//       + "\n=====QUILL_CHUNK=====\n"
+//   } else if (error) {
+//     answer = "\n=====QUILL_CHUNK=====\n"
+//       + "\n<CODE>\n" + rawCode + "\n</CODE>\n"
+//       + "\n<ERROR>\n" + error + "\n</ERROR>\n"
+//       + "\n=====QUILL_CHUNK=====\n"
+//   }
 
-  res.json({ answer })
+//   res.json({ answer })
 
-  return
-}));
+//   return
+// }));
 
 export default router

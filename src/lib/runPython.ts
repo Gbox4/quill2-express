@@ -50,7 +50,7 @@ print("===== SCRIPT OUTPUT =====")
 }
 
 function generateDockerfile(folder: string, csvInfo: CsvInfo) {
-  return `FROM amancevice/pandas
+  const file = `FROM amancevice/pandas
 
 COPY tmp/${folder}/script.py /app/
 
@@ -67,4 +67,6 @@ WORKDIR /app
 
 CMD ["python", "script.py"]
 `
+  console.log(file)
+  return file
 }

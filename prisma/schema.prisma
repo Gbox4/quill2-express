@@ -13,7 +13,7 @@ datasource db {
 model Team {
     id          Int      @id @default(autoincrement())
     createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt @default(now())
+    updatedAt   DateTime @default(now()) @updatedAt
     name        String
     allowedTabs String   @default("/chat,/data,/brief")
     users       User[]
@@ -28,7 +28,7 @@ enum PlanType {
 model User {
     id                  Int                  @id @default(autoincrement())
     createdAt           DateTime             @default(now())
-    updatedAt           DateTime             @updatedAt @default(now())
+    updatedAt           DateTime             @default(now()) @updatedAt
     email               String               @unique
     planType            PlanType             @default(FREE)
     passwordHash        String
@@ -43,7 +43,7 @@ model User {
 model Session {
     id        Int      @id @default(autoincrement())
     createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
     expires   DateTime
     token     String   @unique
     user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -57,7 +57,7 @@ model Session {
 model ResetPasswordToken {
     id        Int      @id @default(autoincrement())
     createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
     expires   DateTime
     token     String   @unique
     user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -67,7 +67,7 @@ model ResetPasswordToken {
 model QuestionChain {
     id           Int        @id @default(autoincrement())
     createdAt    DateTime   @default(now())
-    updatedAt    DateTime   @updatedAt @default(now())
+    updatedAt    DateTime   @default(now()) @updatedAt
     questions    Question[]
     user         User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
     userId       Int
@@ -76,12 +76,14 @@ model QuestionChain {
     name         String
     startingText String?
     filenames    String // delimited by \n=====\n
+    filesDesc    String
+    gpt4         Boolean
 }
 
 model Question {
     id              Int           @id @default(autoincrement())
     createdAt       DateTime      @default(now())
-    updatedAt       DateTime      @updatedAt @default(now())
+    updatedAt       DateTime      @default(now()) @updatedAt
     loading         Boolean       @default(true)
     archived        Boolean       @default(false)
     text            String
@@ -92,5 +94,4 @@ model Question {
     answer          String        @default("")
     error           String        @default("")
     rating          Int           @default(0)
-    filenames       String
 }

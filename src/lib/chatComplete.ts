@@ -54,7 +54,8 @@ export async function chatComplete(convo: GptChat[], opts?: {
 export async function chatCompleteStream(convo: GptChat[], res: Response, opts?: {
   gpt4?: boolean,
   temperature?: number,
-  onFinish?: (final: string) => void
+  onFinish?: (final: string) => void,
+  onError?: (errorMessage: string) => void
 }) {
   console.log(chalk.cyan("<CONVO>"))
   convo.forEach((chat, i) => {
@@ -62,7 +63,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
   })
   console.log(chalk.cyan("</CONVO>"))
 
-  const tokenMax = (opts?.gpt4 ? 8000 : 4000)
+  const tokenMax = (opts?.gpt4 ? 8192 : 4096)
   const tokenCount = countTokensConvo(convo);
   if (tokenCount > tokenMax) {
     throw new Error(`Prompt is too long: ${tokenCount} / ${tokenMax}`);
@@ -137,6 +138,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
   openaiReq.on('error', (e) => {
     console.error("problem with request:" + e.message);
     openaiReq.destroy()
+    if (opts?.onError) { opts.onError(e.message) }
   });
 
   openaiReq.write(body)

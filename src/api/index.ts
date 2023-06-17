@@ -4,6 +4,7 @@ import brief from '~/api/brief';
 import csv from '~/api/csv';
 import chat from '~/api/chat';
 import complete from '~/api/complete';
+import test from '~/api/test';
 
 const router = express.Router();
 
@@ -17,5 +18,6 @@ router.use('/brief', brief);
 router.use('/csv', csv);
 router.use('/chat', chat);
 router.use('/complete', complete);
+router.use('/test', test);
 
 export default router;

@@ -5,7 +5,7 @@ const chalk = require('chalk');;
 import https from 'https';
 
 export type GptChat = {
-  role: "system" | "user" | "assistant",
+  role: "system" | "user" | "assistant" | "function",
   content: string,
 }
 

@@ -11,12 +11,13 @@ datasource db {
 }
 
 model Team {
-    id          Int      @id @default(autoincrement())
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @default(now()) @updatedAt
-    name        String
-    allowedTabs String   @default("/chat,/data,/brief")
-    users       User[]
+    id            Int      @id @default(autoincrement())
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @default(now()) @updatedAt
+    name          String
+    allowedTabs   String   @default("/chat,/data,/brief")
+    users         User[]
+    pineconeIndex String?
 }
 
 enum PlanType {

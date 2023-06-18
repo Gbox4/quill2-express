@@ -3,10 +3,14 @@ from flask import Flask, request, jsonify
 from PyPDF2 import PdfReader
 import docx
 import io
+import tabula
+import csv
 
 from bs4 import BeautifulSoup
 import requests
 from nltk import tokenize
+from werkzeug.utils import secure_filename
+from tabula import read_pdf
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
@@ -82,6 +86,34 @@ def extract_text_from_pdf():
 
     return "No file received"
 
+@app.route('/extract-csv-from-pdf', methods=['POST'])
+def extract_csv_from_pdf():
+    print('91')
+    # Check if a file is uploaded
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'})
+    print('95')
+
+    pdf_file = request.files['file']
+    print('98')
+
+    # Check if the file is a PDF
+    if not pdf_file.filename.endswith('.pdf'):
+        return jsonify({'error': 'Invalid file format. Only PDF files are supported'})
+    print('103')
+
+    # Read the PDF file and extract tables
+    tables = tabula.read_pdf(pdf_file, pages='all')
+    print('107')
+
+    # Convert tables to CSV strings
+    csv_strings = []
+    for table in tables:
+        csv_string = table.to_csv(index=False)
+        csv_strings.append(csv_string)
+    print('114')
+
+    return jsonify({'csv_strings': csv_strings})
 
 @app.route('/extract-text-from-url', methods=['POST'])
 def extract_text_from_url():

@@ -188,12 +188,11 @@ router.get('/continue', asyncHandler(async (req, res) => {
 The user has uploaded the following files:
 ${csvInfo.descStr}
 
-Current date: ${new Date().toISOString().split('T')[0]}. I want you to act as a Python script generator. Every time I ask a question, write a complete python script that will print the answer to my question. Print in csv format, with any relevant columns. Comment your logic. Plan out what you are going to do, then write the script enclosed a code block \`\`\`.
+Current date: ${new Date().toISOString().split('T')[0]}. I want you to act as a Python script generator. Every time I ask a question, write a complete python script that will print the answer to my question. Print in csv format, with any relevant columns. Comment your logic. Describe what you are going to do, then write the script enclosed a code block \`\`\`.
 
 Remember:
-- Write out a plan of what you will do.
 - Write a complete python script in each code block.
-- Only output in CSV format.`}
+- Only output in CSV format. Do not use matplotlib or any such library.`}
     ]
 
     const convoMid: GptChat[] = []
@@ -219,30 +218,47 @@ Remember:
       convoMid.push({ role: "user", content: question.text })
     }
 
-    const convoExamples: GptChat[] = []
+    // const convoExamples: GptChat[] = []
 
-    // TODO: setup examples
-    const examples = [] as string[]
-    for (let i = 0; i < examples.length; i += 2) {
-      const question = examples[i]
-      const answer = examples[i + 1]
+    // // TODO: setup examples
+    // const examples = [] as string[]
+    // for (let i = 0; i < examples.length; i += 2) {
+    //   const question = examples[i]
+    //   const answer = examples[i + 1]
 
-      if (!answer || !question) {
-        console.log(chalk.red("Invalid example."))
-        break
-      }
+    //   if (!answer || !question) {
+    //     console.log(chalk.red("Invalid example."))
+    //     break
+    //   }
 
-      let newTokens = countTokens(question) + countTokens(answer)
-      if (currentTokens + newTokens > tokensTotal) {
-        break;
-      }
-      currentTokens += newTokens
-      convoExamples.push({ role: "assistant", content: answer })
-      convoExamples.push({ role: "user", content: question })
-    }
+    //   let newTokens = countTokens(question) + countTokens(answer)
+    //   if (currentTokens + newTokens > tokensTotal) {
+    //     break;
+    //   }
+    //   currentTokens += newTokens
+    //   convoExamples.push({ role: "assistant", content: answer })
+    //   convoExamples.push({ role: "user", content: question })
+    // }
+
+    const convoExamples: GptChat[] = [{
+      role: "user",
+      content: "Show all data."
+    }, {
+      role: "assistant",
+      content: `Sure! I'll show you the entire dataset:
+
+\`\`\`
+import pandas as pd
+
+# Load the csv
+data = pd.read_csv('data.csv')
+# Display to user
+print(data.to_csv(index=False))
+\`\`\``
+    }]
 
     convoMid.reverse()
-    convoExamples.reverse()
+    // convoExamples.reverse()
 
     let convo = [...convoExamples, ...convoStart, ...convoMid, ...convoEnd]
     // const tokenCount = countTokensConvo(convo)

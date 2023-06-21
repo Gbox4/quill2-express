@@ -192,7 +192,7 @@ Current date: ${new Date().toISOString().split('T')[0]}. I want you to act as a 
 
 Remember:
 - Write a complete python script in each code block.
-- Only output in CSV format. Do not use matplotlib or any such library.`}
+- Only output in CSV format. Do not use matplotlib or any such library. The only way you are allowed to output data is by printing a CSV string.`}
     ]
 
     const convoMid: GptChat[] = []
@@ -200,7 +200,7 @@ Remember:
     const convoEnd: GptChat[] = [
       {
         role: "user",
-        content: body.question
+        content: body.question + `\n\nRemember, only output by printing in CSV.`
       }]
 
     let currentTokens = countTokensConvo(convoStart) + countTokensConvo(convoEnd)
@@ -255,7 +255,25 @@ data = pd.read_csv('data.csv')
 # Display to user
 print(data.to_csv(index=False))
 \`\`\``
-    }]
+    }, {
+      role: "user", content: "Are there any trends or patterns in the data that can be identified?"
+    }, {
+      role: "assistant",
+      content: `import pandas as pd
+
+# Load the csv
+data = pd.read_csv('finviz-2023-06-10.csv')
+
+# Select only the numerical columns
+numerical_cols = data.select_dtypes(include=['float64', 'int64'])
+
+# Calculate the correlation matrix
+corr_matrix = numerical_cols.corr()
+
+# Print the correlation matrix in CSV format
+print(corr_matrix.to_csv())
+`}
+    ]
 
     convoMid.reverse()
     // convoExamples.reverse()

@@ -88,30 +88,24 @@ def extract_text_from_pdf():
 
 @app.route('/extract-csv-from-pdf', methods=['POST'])
 def extract_csv_from_pdf():
-    print('91')
     # Check if a file is uploaded
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'})
-    print('95')
 
     pdf_file = request.files['file']
-    print('98')
 
     # Check if the file is a PDF
     if not pdf_file.filename.endswith('.pdf'):
         return jsonify({'error': 'Invalid file format. Only PDF files are supported'})
-    print('103')
 
     # Read the PDF file and extract tables
     tables = tabula.read_pdf(pdf_file, pages='all')
-    print('107')
 
     # Convert tables to CSV strings
     csv_strings = []
     for table in tables:
         csv_string = table.to_csv(index=False)
         csv_strings.append(csv_string)
-    print('114')
 
     return jsonify({'csv_strings': csv_strings})
 

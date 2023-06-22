@@ -63,7 +63,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
   })
   console.log(chalk.cyan("</CONVO>"))
 
-  const tokenMax = (opts?.gpt4 ? 8192 : 4096)
+  const tokenMax = (opts?.gpt4 ? 8192 : 16384)
   const tokenCount = countTokensConvo(convo);
   if (tokenCount > tokenMax) {
     throw new Error(`Prompt is too long: ${tokenCount} / ${tokenMax}`);
@@ -128,7 +128,7 @@ export async function chatCompleteStream(convo: GptChat[], res: Response, opts?:
   })
 
   const body = JSON.stringify({
-    model: opts?.gpt4 ? "gpt-4" : "gpt-3.5-turbo",
+    model: opts?.gpt4 ? "gpt-4-0613" : "gpt-3.5-turbo-16k-0613",
     messages: convo,
     temperature: opts?.temperature,
     max_tokens: tokenMax - tokenCount,

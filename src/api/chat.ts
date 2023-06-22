@@ -205,7 +205,7 @@ Remember:
 
     let currentTokens = countTokensConvo(convoStart) + countTokensConvo(convoEnd)
 
-    let tokensTotal = questionChain.gpt4 ? 8000 : 4000
+    let tokensTotal = questionChain.gpt4 ? 7000 : 15000
 
     for (let i = 0; i < questionChain.questions.length; i++) {
       const question = questionChain.questions[i]!;
@@ -272,7 +272,25 @@ corr_matrix = numerical_cols.corr()
 
 # Print the correlation matrix in CSV format
 print(corr_matrix.to_csv())
-`}
+`}, 
+// {
+//   role: "user", content: "Are there any trends or patterns in the data that can be identified?"
+// }, {
+//   role: "assistant",
+//   content: `import pandas as pd
+
+// # Load the csv
+// data = pd.read_csv('finviz-2023-06-10.csv')
+
+// # Select only the numerical columns
+// numerical_cols = data.select_dtypes(include=['float64', 'int64'])
+
+// # Calculate the correlation matrix
+// corr_matrix = numerical_cols.corr()
+
+// # Print the correlation matrix in CSV format
+// print(corr_matrix.to_csv())
+// `}
     ]
 
     convoMid.reverse()

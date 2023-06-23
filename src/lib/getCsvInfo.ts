@@ -3,6 +3,7 @@ import runPyScript from "./runPyScript";
 export default async function getCsvInfo(filenames: string[], teamId: number) {
     const csvs = [] as { filepath: string, filename: string, colDesc: string }[]
 
+    filenames = filenames.filter(x => x.length > 0)
     console.log(filenames)
 
     for (let i = 0; i < filenames.length; i++) {

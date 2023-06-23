@@ -200,7 +200,7 @@ Remember:
     const convoEnd: GptChat[] = [
       {
         role: "user",
-        content: body.question + `\n\nRemember, only output by printing in CSV.`
+        content: body.question
       }]
 
     let currentTokens = countTokensConvo(convoStart) + countTokensConvo(convoEnd)

@@ -9,11 +9,13 @@ import { prisma } from '~/lib/db';
 const router = express.Router();
 
 router.post('/', asyncHandler(async (req, res) => {
-  const schema = z.object({
+const schema = z.object({
     textFileIds: z.array(z.string()),
+    sessionToken: z.string(),
     query: z.string(),
   });
-  const body = schema.parse(req.body);
+const body = schema.parse(req.body);
+  const session = await prisma.session.findFirstOrThrow({ where: { token: body.sessionToken } });
 
   const textFiles = await prisma.textFile.findMany({
     where: { id: { in: body.textFileIds } }

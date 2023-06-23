@@ -1,5 +1,5 @@
 import express from 'express';
-import { copyFile, mkdir, readdir, rm } from 'fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm } from 'fs/promises';
 import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
@@ -81,8 +81,9 @@ router.post("/describe", asyncHandler(async (req, res) => {
   const destFile = `data/${session.user.teamId}/${body.filename}`
 
   const cols = await runPyScript("pyscripts/csvCols.py", [destFile])
+  const data = (await readFile(destFile)).toString('utf-8')
 
-  res.json({ cols })
+  res.json({ cols, data })
 }))
 
 router.post("/delete", asyncHandler(async (req, res) => {

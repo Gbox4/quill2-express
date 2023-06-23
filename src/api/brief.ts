@@ -1,67 +1,36 @@
-import { randomUUID } from 'crypto';
+src/api/brief.ts
+```typescript
 import express from 'express';
-import { rm, writeFile } from 'fs/promises';
-import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
+import { chatComplete } from '~/lib/chatComplete';
 import { prisma } from '~/lib/db';
-import runPyScript from '~/lib/runPyScript';
 
 const router = express.Router();
 
-const upload = multer()
-
-router.post('/', upload.none(), asyncHandler(async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const schema = z.object({
-    sessionToken: z.string(),
-    question: z.string(),
-    top_k: z.number(),
-    type: z.string(),
-    docs: z.array(z.object({
-      id: z.number(),
-      text: z.string(),
-      name: z.string(),
-    }))
+    textFileIds: z.array(z.string()),
+    query: z.string(),
   });
   const body = schema.parse(req.body);
-  const session = await prisma.session.findFirstOrThrow({
-    where: { token: body.sessionToken },
-  })
 
-  const questionFile = "tmp/" + randomUUID() + ".txt";
-  await writeFile(questionFile, body.question);
+  const textFiles = await prisma.textFile.findMany({
+    where: { id: { in: body.textFileIds } }
+  });
 
-  const resSentences = [] as {
-    sentence: string,
-    score: number,
-    docId: number,
-  }[]
+  const convo = textFiles.map(file => ({
+    role: 'user',
+    content: file.content,
+  }));
+  convo.push({
+    role: 'user',
+    content: body.query,
+  });
 
-  for (const doc of body.docs) {
-    const textFile = "tmp/" + randomUUID() + ".txt";
-    await writeFile(textFile, doc.text);
+  const result = await chatComplete(convo, { temperature: 0 });
 
-    let rawBrief = await runPyScript("pyscripts/brief.py", [textFile, questionFile, body.top_k.toString()])
-    let rawList = rawBrief.split("\n=====\n")
-    // First half is sentences, second half is scores
-    let sentences = rawList.slice(0, rawList.length / 2)
-    let scores = rawList.slice(rawList.length / 2)
-
-    // Add to resSentences
-    for (let i = 0; i < sentences.length; i++) {
-      resSentences.push({
-        sentence: sentences[i],
-        score: parseFloat(scores[i]),
-        docId: doc.id,
-      })
-    }
-
-    await rm(textFile);
-  }
-
-  await rm(questionFile);
-
-  res.json({ sentences: resSentences })
+  res.json({ result });
 }));
 
 export default router;

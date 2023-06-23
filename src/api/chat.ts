@@ -181,7 +181,7 @@ router.get('/continue', asyncHandler(async (req, res) => {
     const csvInfo = await getCsvInfo(questionChain.filenames.split("=====QUILL_CHUNK====="), session.user.teamId)
 
     // Build conversation
-    const convoStart: GptChat[] = [{ role: "system", content: "You are a helpful assistant." },
+    const convoStart: GptChat[] = [{ role: "system", content: "You write code and you never, ever apologize." },
     {
       role: "user", content: `MESSAGE FROM SYSTEM:
 

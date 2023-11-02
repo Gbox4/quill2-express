@@ -3,7 +3,7 @@ import { exec } from "child_process";
 import { randomUUID } from "crypto";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { promisify } from "util";
-import getCsvInfo, { CsvInfo } from "./getCsvInfo";
+import { CsvInfo } from "./getCsvInfo";
 
 const execAsync = promisify(exec);
 

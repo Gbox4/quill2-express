@@ -1,6 +1,6 @@
 import runPyScript from "./runPyScript";
 
-export default async function getCsvInfo(filenames: string[], teamId: number) {
+export async function getCsvInfo(filenames: string[], teamId: number) {
     const csvs = [] as { filepath: string, filename: string, colDesc: string }[]
 
     filenames = filenames.filter(x => x.length > 0)
@@ -8,7 +8,7 @@ export default async function getCsvInfo(filenames: string[], teamId: number) {
 
     for (let i = 0; i < filenames.length; i++) {
         const filename = filenames[i];
-        const filepath = `data/${teamId}/${filename}`
+        const filepath = getCsvPath(filename, teamId)
         const colDesc = await runPyScript("pyscripts/csvCols.py", [filepath], true)
 
         console.log(colDesc)
@@ -25,3 +25,12 @@ export default async function getCsvInfo(filenames: string[], teamId: number) {
 }
 
 export type CsvInfo = Awaited<ReturnType<typeof getCsvInfo>>
+
+export function getCsvPath(filename: string, teamId: number) {
+    return (
+        (filename.startsWith("common-")) ?
+            `data/common/${filename}`
+            :
+            `data/${teamId}/${filename}`
+    )
+}

@@ -5,7 +5,7 @@ import { asyncHandler } from '~/lib/asyncHandler';
 import { GptChat, chatCompleteStream } from '~/lib/chatComplete';
 import { countTokens } from '~/lib/countTokens';
 import { prisma } from '~/lib/db';
-import getCsvInfo from '~/lib/getCsvInfo';
+import { getCsvInfo } from '~/lib/getCsvInfo';
 import { runPython } from '~/lib/runPython';
 
 const router = express.Router();
@@ -272,25 +272,25 @@ corr_matrix = numerical_cols.corr()
 
 # Print the correlation matrix in CSV format
 print(corr_matrix.to_csv())
-`}, 
-// {
-//   role: "user", content: "Are there any trends or patterns in the data that can be identified?"
-// }, {
-//   role: "assistant",
-//   content: `import pandas as pd
+`},
+      // {
+      //   role: "user", content: "Are there any trends or patterns in the data that can be identified?"
+      // }, {
+      //   role: "assistant",
+      //   content: `import pandas as pd
 
-// # Load the csv
-// data = pd.read_csv('finviz-2023-06-10.csv')
+      // # Load the csv
+      // data = pd.read_csv('finviz-2023-06-10.csv')
 
-// # Select only the numerical columns
-// numerical_cols = data.select_dtypes(include=['float64', 'int64'])
+      // # Select only the numerical columns
+      // numerical_cols = data.select_dtypes(include=['float64', 'int64'])
 
-// # Calculate the correlation matrix
-// corr_matrix = numerical_cols.corr()
+      // # Calculate the correlation matrix
+      // corr_matrix = numerical_cols.corr()
 
-// # Print the correlation matrix in CSV format
-// print(corr_matrix.to_csv())
-// `}
+      // # Print the correlation matrix in CSV format
+      // print(corr_matrix.to_csv())
+      // `}
     ]
 
     convoMid.reverse()

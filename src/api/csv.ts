@@ -4,6 +4,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler } from '~/lib/asyncHandler';
 import { prisma } from '~/lib/db';
+import { getCsvPath } from '~/lib/getCsvInfo';
 import runPyScript from '~/lib/runPyScript';
 
 const router = express.Router();
@@ -25,8 +26,13 @@ router.post('/create', upload.single("file"), asyncHandler(async (req, res) => {
 
   const fromFile = req.file.path
 
+  let filename = req.file.originalname
+  if (filename.startsWith("common-")) {
+    filename = filename.slice("common-".length)
+  }
+
   const destFolder = `data/${session.user.teamId}`
-  const destFile = `${destFolder}/${req.file.originalname}`
+  const destFile = `${destFolder}/${filename}`
 
   try {
     await mkdir(destFolder)
@@ -63,8 +69,7 @@ router.post("/read", asyncHandler(async (req, res) => {
   }
 
   // add common datasets
-  const commonTeam = await prisma.team.findFirstOrThrow({ where: { name: "quillv2" } })
-  const commonDest = `data/${commonTeam.id}`
+  const commonDest = `data/common`
   let commonCsvFilenames = [] as string[]
   try {
     commonCsvFilenames = await readdir(commonDest)
@@ -88,7 +93,8 @@ router.post("/describe", asyncHandler(async (req, res) => {
     select: { user: { select: { teamId: true } } }
   })
 
-  const destFile = `data/${session.user.teamId}/${body.filename}`
+  // const destFile = `data/${session.user.teamId}/${body.filename}`
+  const destFile = getCsvPath(body.filename, session.user.teamId)
 
   const cols = await runPyScript("pyscripts/csvCols.py", [destFile])
   const data = (await readFile(destFile)).toString('utf-8')
@@ -108,7 +114,7 @@ router.post("/delete", asyncHandler(async (req, res) => {
     select: { user: { select: { teamId: true } } }
   })
 
-  const filepath = `data/${session.user.teamId}/${body.filename}`
+  const filepath = getCsvPath(body.filename, session.user.teamId)
 
   await rm(filepath)
 

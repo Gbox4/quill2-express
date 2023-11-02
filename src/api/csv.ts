@@ -62,7 +62,17 @@ router.post("/read", asyncHandler(async (req, res) => {
     console.log("no dir yet")
   }
 
-  res.json({ csvFilenames })
+  // add common datasets
+  const commonTeam = await prisma.team.findFirstOrThrow({ where: { name: "quillv2" } })
+  const commonDest = `data/${commonTeam.id}`
+  let commonCsvFilenames = [] as string[]
+  try {
+    commonCsvFilenames = await readdir(commonDest)
+  } catch {
+    console.log("no common dir yet")
+  }
+
+  res.json({ csvFilenames: [...csvFilenames, ...commonCsvFilenames] })
 }))
 
 router.post("/describe", asyncHandler(async (req, res) => {
